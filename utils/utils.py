@@ -21,7 +21,7 @@ def pca_plot(D, M,n_components=2,title="pca_plot", scale='z-scaling',plot_withou
     d = D.copy()
     m = M.copy()
     scaler = StandardScaler()
-    palette = sns.color_palette("tab20", n_colors=len(M['batch'].unique()))
+    
     if d.shape[0] != m.shape[0]:
         raise warnings.warn('Is Data of shape (n_samples,n_signals) and Metdata of shape (n_samples,n_features)?')
     if plot_without_blanks:
@@ -44,9 +44,10 @@ def pca_plot(D, M,n_components=2,title="pca_plot", scale='z-scaling',plot_withou
         pca_df[hue] = m[hue]
         plt.figure()
         if hue == 'batch':
+            palette = sns.color_palette("tab20", n_colors=len(M['batch'].unique()))
             sns.scatterplot(data=pca_df, x=cols[0], y=cols[1], hue=hue,palette=palette,legend=legend)
         else:
-            sns.scatterplot(data=pca_df, x=cols[0], y=cols[1], hue=hue,palette=palette)
+            sns.scatterplot(data=pca_df, x=cols[0], y=cols[1], hue=hue)
         plt.grid()
         plt.title(f"{title}_{hue}")
         plt.xlabel(f'{cols[0]} ({pca.explained_variance_ratio_[0]*100:.2f}%)')
