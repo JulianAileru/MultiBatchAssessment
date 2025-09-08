@@ -6,54 +6,32 @@ from joblib import Parallel,delayed
 from tqdm import tqdm 
 from sklearn.svm import SVR
 from sklearn.model_selection import GridSearchCV,LeaveOneOut
+import warnings
 
-def svr_function(qc_intensity,bio_intensity,qc_injection_order,bio_injection_order):
-    """
-    Support vector regression function. Regresses qc-signal intensity as a function of injection_order. Predictions are then applied to study samples using subtraction
-    Parameters
-    ---------
-    qc_intensity: pd.Series
-        - Series of signal intensities in qc samples
-    bio_intensity: pd.Series
-        - Series of signal intensities in non-qc samples
-    qc_injection_order: pd.Series
-        - injection order of qc samples
-    bio_injection_order: pd.Series
-        - injection order of non-qc samples 
-    """
-    svr = SVR()
-    svr.fit(qc_injection_order,qc_intensity)
-    fitted_values = svr.predict(qc_injection_order)
-    predicted_values = svr.predict(bio_injection_order)
-    adjusted_qc = qc_intensity - fitted_values
-    adjusted_bio = bio_intensity - predicted_values
-    return pd.concat([adjusted_qc,adjusted_bio],axis=0)
-
-def parallel_svr_correction(data,metadata,n_jobs=-1,qc='SP'):
-    """
-    Parallelization wrapper function for support vector regression. Uses joblib for parallelization with a debug option to view individual signal corrections. 
-    Parameters
-    ---------
-    data: pd.DataFrame
-        - Data Matrix of shape (n_samples,n_signals)
-    metadata: pd.DataFrame
-        - metadata information, needs to specify injection order of samples and batch 
-    n_jobs: int (optional,default=-1):
-        - specify number of cores 
-    qc: str
-        - specify str id of QC samples. 
-    """
-    group_by_batch = data.groupby(metadata['batch'])
-    lst = []
-    for idx,batch in group_by_batch:
-        QC = batch[batch.index.str.contains(f"{qc}")]
-        Bio = batch[~batch.index.str.contains(f"{qc}")]
-        qc_injection_order = metadata.loc[QC.index,'injection_order'].to_numpy().reshape(-1,1)
-        bio_injection_order = metadata.loc[Bio.index,'injection_order'].to_numpy().reshape(-1,1)
-        results = Parallel(n_jobs=n_jobs)(delayed(svr_function)(QC[col],Bio[col],qc_injection_order,bio_injection_order) for col in tqdm(QC.columns,desc=f'Correcting signals...'))
-        results = pd.concat(results,axis=1)
-        lst.append(results)
-    return pd.concat(lst,axis=0)
+def RSD(D):
+    if D.shape[0] > D.shape[1]:
+        raise warnings.warn('Is Data of shape (n_samples,n_signals)?')
+    value = (D.std(axis=0) / D.mean(axis=0)) * 100
+    print(f'Median RSD: {value.median()}')
+    return value
+#Find best way to represent data distribution in the case of extensive outliers. 
+def rsd_distribution(D,M,batch=None):
+    QC = D[D.index.str.contains("_SP_")]
+    Bio = D[~D.index.str.contains("_SP_")]
+    if isinstance(batch,int):
+        plt.title(f"RSD Distribution of QC Features in batch {batch}")
+        batch_QC = QC.groupby(M['batch']).get_group(batch)
+        sns.histplot(RSD(batch_QC))
+    elif isinstance(batch,list):
+        batch_QC = QC.groupby(M['batch'])
+        plt.title(f"RSD Distribution of QC Features per batch")
+        for i in batch:
+            batch_ = batch_QC.get_group(i)
+            sns.histplot(RSD(batch_),label=i,legend=True)
+            plt.legend()
+    else:
+        plt.title("RSD Distribution of QC Features across batches")
+        sns.histplot(RSD(QC))
 
 def plot_signal_drift(data,metadata,signal_idx=None,batch_idx=None,random_state=1,include_all_samples=True,include_all_batches=False):
     """
@@ -115,30 +93,44 @@ def plot_signal_drift(data,metadata,signal_idx=None,batch_idx=None,random_state=
     return None
 
 
-#### DEBUG
-
-#Train on QC samples, apply corrections to Study Samples 
-#Train on QC samples, apply corrections to Study Samples 
+#specify if data is in log2, or not, if so apply correction in log space (divide values and scale by qc_intensity median)
 def svr_function(qc_intensity,bio_intensity,qc_injection_order,bio_injection_order,qc1):
+    """
+    Support vector regression function. Regresses qc-signal intensity as a function of injection_order. Predictions are then applied to study samples using subtraction
+    Parameters
+    ---------
+    qc_intensity: pd.Series
+        - Series of signal intensities in qc samples
+    bio_intensity: pd.Series
+        - Series of signal intensities in non-qc samples
+    qc_injection_order: pd.Series
+        - injection order of qc samples
+    bio_injection_order: pd.Series
+        - injection order of non-qc samples
+    qc1: int
+        - injection order index of qc sample with the lowest injection order 
+    """
     params = {'kernel':['rbf'],
               'C':[C_param(qc_intensity)],
               'epsilon':[epsilon_param(qc_intensity=qc_intensity,qc1=qc1,pct_precision=15)],
               'gamma':np.logspace(-3,6,base=2)}
-    if qc_intensity.isna().sum() >= 5:
+    if qc_intensity.isna().sum() > 5:
         return pd.concat([qc_intensity,bio_intensity],axis=0)
     else: 
         svr = SVR()
         qc_no_outliers = remove_qc_outliers(intensity=qc_intensity)
         qc_inj_no_outliers = qc_injection_order[qc_no_outliers.index]
+        if qc_no_outliers.empty:
+            return pd.concat([qc_intensity,bio_intensity],axis=0)
         X = qc_inj_no_outliers.to_numpy().reshape(-1,1)
         y = qc_no_outliers.to_numpy().ravel()
         cv = GridSearchCV(svr,params,n_jobs=1,scoring='neg_root_mean_squared_error',cv=LeaveOneOut())
         cv.fit(X,y)
         model = cv.best_estimator_
-        fitted_values = pd.Series(model.predict(qc_injection_order.to_numpy().reshape(-1,1)),index=qc_intensity.index)
-        predicted_values = pd.Series(model.predict(bio_injection_order.to_numpy().reshape(-1,1)),index=bio_intensity.index)
-        adjusted_qc = qc_intensity - fitted_values
-        adjusted_bio = bio_intensity - predicted_values
+        fitted_values = pd.Series(model.predict(qc_injection_order.to_numpy().reshape(-1,1)),index=qc_intensity.index,name=qc_intensity.name)
+        predicted_values = pd.Series(model.predict(bio_injection_order.to_numpy().reshape(-1,1)),index=bio_intensity.index,name=bio_intensity.name)
+        adjusted_qc = (qc_intensity - fitted_values) + qc_intensity.median()
+        adjusted_bio = (bio_intensity - predicted_values) + qc_intensity.median()
     return pd.concat([adjusted_qc,adjusted_bio],axis=0)
 
 def remove_qc_outliers(intensity,method='median'):
@@ -153,6 +145,7 @@ def remove_qc_outliers(intensity,method='median'):
         lower_threshold = intensity.median() * .20
         no_outliers = intensity[intensity >= lower_threshold]
     return no_outliers
+
 def C_param(qc_intensity,lower=.10,upper=.90):
     C = qc_intensity.quantile(upper) - qc_intensity.quantile(lower)
     return C
@@ -165,6 +158,19 @@ def epsilon_param(qc_intensity,qc1,pct_precision=15):
     return eps_scale
 
 def parallel_svr_correction(data,metadata,n_jobs=-1,qc='SP'):
+    """
+    Parallelization wrapper function for support vector regression. Uses joblib for parallelization with a debug option to view individual signal corrections. 
+    Parameters
+    ---------
+    data: pd.DataFrame
+        - Data Matrix of shape (n_samples,n_signals)
+    metadata: pd.DataFrame
+        - metadata information, needs to specify injection order of samples and batch 
+    n_jobs: int (optional,default=-1):
+        - specify number of cores 
+    qc: str
+        - specify str id of QC samples. 
+    """
     group_by_batch = data.groupby(metadata['batch'])
     lst = []
     for idx,batch in group_by_batch:
@@ -174,8 +180,7 @@ def parallel_svr_correction(data,metadata,n_jobs=-1,qc='SP'):
         qc_injection_order = metadata.loc[QC.index,'injection_order']
         bio_injection_order = metadata.loc[Bio.index,'injection_order']
         results = Parallel(n_jobs=n_jobs)(delayed(svr_function)(QC[col],Bio[col],qc_injection_order,bio_injection_order,qc1) for col in tqdm(QC.columns,desc=f'Correcting signals...'))
-        results = pd.concat(results,axis=1)
-        lst.append(results)
+        lst.append(pd.concat(results,axis=1))
     return pd.concat(lst,axis=0)
 
 def svr_correction(data,metadata,qc='SP'):
@@ -193,16 +198,13 @@ def svr_correction(data,metadata,qc='SP'):
     return pd.concat(lst,axis=0)
 
 
-
-
-
-
-
-# D = pd.read_csv("data/nph_data.csv").drop(columns=['position','mz','rt']).set_index("name").T
-# M = pd.read_csv("data/nph_metadata.csv").set_index("sample_name")
-# M = M.sort_values(by=['batch','injection_order'])
-# M['injection_order'] = [x for x in range(1,len(M['injection_order'])+1)]
-# M['batch'].unique()
-# D = D.replace(128.0,np.nan)
-
-# results = svr_correction(D,M)
+def BH1(D,M):
+    batch_group = D.groupby(M['batch'])
+    grand_mean = D[D.index.str.contains("_SP_")].mean(axis=0)
+    corrected = []
+    for idx,batch in batch_group:
+        batch_mean = batch[batch.index.str.contains("_SP_")].mean(axis=0)
+        error = batch_mean - grand_mean
+        batch -= error
+        corrected.append(batch)
+    return pd.concat(corrected,axis=0) 
