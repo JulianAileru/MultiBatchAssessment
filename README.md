@@ -3,14 +3,10 @@ A python dashboard to assess the contribution and removal of batch effects in la
 
 
 QC-Dependent methods (requires QC samples):
-- Feature Based Signal Correction (Corrects intra-batch drift per feature)
+- Feature Based Signal Correction (Corrects intra-batch drift per feature, followed by QC mean shifting to correct for inter-batch effect)
   - QC-SVRC
   - QC-RSC
   - QC-RFSC
-
-- Application of Correction Factors 
-  - Model Prediction
-  - Model Median Ratio
     
 - Standalone QC normalization (Corrects intra-batch and inter-batch drift) 
   - SERRF
