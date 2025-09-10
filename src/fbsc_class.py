@@ -7,6 +7,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 from joblib import Parallel,delayed
 from stqdm import stqdm
+from tqdm.notebook import tqdm
 from sklearn.svm import SVR
 from sklearn.model_selection import GridSearchCV,LeaveOneOut
 
@@ -223,7 +224,7 @@ class FBSC:
             Bio = batch[~batch.index.str.contains(f"{qc_idx}")]
             qc_injection_order = metadata.loc[QC.index,'injection_order']
             bio_injection_order = metadata.loc[Bio.index,'injection_order']
-            results = Parallel(n_jobs=n_jobs)(delayed(FBSC.svr_function)(QC[col],Bio[col],qc_injection_order,bio_injection_order,qc1) for col in stqdm(QC.columns,desc=f'Correcting signals...'))
+            results = Parallel(n_jobs=n_jobs)(delayed(FBSC.svr_function)(QC[col],Bio[col],qc_injection_order,bio_injection_order,qc1) for col in tqdm(QC.columns,desc=f'Correcting signals...'))
             lst.append(pd.concat(results,axis=1))
         svr_correct = pd.concat(lst,axis=0)
         return svr_correct
