@@ -36,6 +36,8 @@ class FBSC:
         self.samples = self.D.index.to_list()
         self.n_batch = self.M['batch'].unique()
         self.blank_idx = blank_idx
+        self.index_col = index_col
+        self.sample_types = self.M['sample_type'].unique()
     ### Diagnostic Page Functions: pca, rsd distribution, d-ratio distribution, pvca 
     @staticmethod
     def RSD(D):
@@ -46,6 +48,9 @@ class FBSC:
         if isinstance(batch,int):
             batch_QC = QC.groupby(self.M['batch']).get_group(batch)
             dist = FBSC.RSD(batch_QC)
+            median_val = dist['RSD'].median(axis=0)
+        else:
+            dist = FBSC.RSD(QC)
             median_val = dist['RSD'].median(axis=0)
         return dist,median_val
     @staticmethod
@@ -59,7 +64,7 @@ class FBSC:
         pca_df[pca_hue] = M[pca_hue]
         exp_var_ratio = {col:np.round(exp*100,2) for col,exp in zip(pca_df.columns.to_list(),pca.explained_variance_ratio_)}
         return exp_var_ratio,pca_df
-    def plot_signal_drift(self,batch_idx,signal_idx,include_all_samples=True,include_all_batches=False):
+    def plot_signal_drift(self,batch_idx,signal_idx,include_all_batches=False):
         n_signals = self.n_features
         n_batches = self.n_batch
         if signal_idx == "Random":
@@ -71,8 +76,6 @@ class FBSC:
         signal_df = pd.DataFrame(signal_df,columns=[signal_df.name],index=signal_df.index)
         if not include_all_batches:
             signal_df = signal_df.groupby(self.M.batch).get_group(batch_idx)
-        if not include_all_samples:
-            signal_df = signal_df[signal_df.index.str.contains(f"_{self.qc_idx}_|_{self.sample_idx}_")]
         signal_df['batch'] = self.M.batch
         signal_df['injection_order'] = self.M.injection_order
         signal_df['sample_type'] = self.M.sample_type
@@ -208,10 +211,10 @@ class FBSC:
         return intra_batch_correct
 
 
-# test = FBSC(data='/Users/jaileru/GitHub/batch-effects-dashboard/data/streamlit_sample_data.csv',
-#             metadata='/Users/jaileru/GitHub/batch-effects-dashboard/data/streamlit_sample_metadata.csv')
+test = FBSC(data=pd.read_csv('/Users/jaileru/GitHub/batch-effects-dashboard/data/streamlit_sample_data.csv'),
+            metadata=pd.read_csv('/Users/jaileru/GitHub/batch-effects-dashboard/data/streamlit_sample_metadata.csv'))
 
-# test.plot_signal_drift(batch_idx="Random",signal_idx="Random",include_all_samples=False,include_all_batches=False)
-            
+# FBSC.pca_plot(D=test.D,M=test.M,pca_hue='sample_type')
+test.plot_signal_drift(batch_idx='Random',signal_idx='Random',include_all_batches=True)          
 
         
