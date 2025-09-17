@@ -3,6 +3,10 @@ from st_processor import FBSC
 import plotly.express as px
 import numpy as np 
 import pandas as pd 
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from MetNormalizer import MetNorm
+from SERRF import SERRF
+from LMBSC import LMBSC
 class PhantomApp:
     def __init__(self, processor):
         self.processor = None
@@ -21,19 +25,24 @@ class PhantomApp:
 
     def home_page(self):
         st.title("Phantom")
-        st.write("## A python dashboard to aid in the assessment and removal of batch effects in large-scale untargeted metabolomics data ")
-        st.write("# Methods")
-        st.write("## QC-Dependent methods:")
-        st.write("### Feature Based Signal Correction (Corrects intra-batch drift per feature, " \
-        "followed by QC mean shifting to correct for inter-batch effect)")
-        st.write("- QC-SVRC")
-        st.write("- QC-RSC")
-        st.write("- QC-RFSC")
-        st.write("### Standalone QC Normalization")
-        st.write("- SERRF")
-        st.write("- MetNormalizer")
-        st.write("## QC-Independent methods:")
-        st.write("### Linear Model Based Correction")
+        st.write("### A python dashboard to aid in the assessment and removal of batch effects in large-scale untargeted metabolomics data ")
+        st.divider()
+        st.header("Methods")
+        col1,col2 = st.columns(2)
+        col1.header("Feature Based Signal Correction (FBSC)")
+        col1.markdown("""
+        - QC-SVRC  
+        - QC-RSC  
+        - QC-RFSC
+        """)
+        col2.header("QC Normalization")
+        col2.markdown("""
+                      - SERRF
+                      - MetNormalizer 
+                      - Grand Mean Adjustment
+                      """)
+
+        st.header("Linear Model Based Correction")
         st.write("- Limma")
         st.write("- Combat")
     def diagnostics_page(self):
@@ -68,23 +77,21 @@ class PhantomApp:
             st.divider()
             st.header("PCA Plot")
             col1_1,col1_2,col1_3,col1_4,col1_5 = st.columns(5)
-            pca_hue = col1_1.selectbox(label='Select Hue',options=self.processor.M.columns.to_list(),placeholder='e.g sample_type',index=1)
+            pca_hue = col1_1.selectbox(label='Select Hue',options=self.processor.metadata.columns.to_list(),placeholder='e.g sample_type',index=1)
             pca_x = col1_2.selectbox(label='Select PC_x',options=[f'PC{x}' for x in range(1,51)],index=0)
             pca_y = col1_3.selectbox(label='Select PC_y',options=[f'PC{x}' for x in range(1,51)],index=1)
             pca_z = col1_4.selectbox(label='Select PC_z',options=[None]+[f'PC{x}' for x in range(1,51)],index=0)
-            include_blanks = col1_5.selectbox(label='Plot Blanks',options=[True,False],index=0)
-            exp_var_ratio,pca_results = FBSC.pca_plot(D=st.session_state['uploaded_data'].set_index('sample_name'),M=st.session_state['uploaded_metadata'].set_index('sample_name'),pca_hue=pca_hue)
+            include_blanks = col1_5.selectbox(label='Include Blanks',options=[True,False],index=1)
+            exp_var_ratio,pca_results = FBSC.pca_plot(D=st.session_state['uploaded_data'],
+                                                      M=st.session_state['uploaded_metadata'],
+                                                      pca_hue=pca_hue,include_blanks=include_blanks)
             if all([pca_x,pca_y,pca_z]):
-                if not include_blanks:
-                    pca_results = pca_results[~pca_results.index.str.contains(self.processor.blank_idx)]
                 fig = px.scatter_3d(pca_results.reset_index(),x=pca_x,y=pca_y,z=pca_z,color=pca_hue,hover_data=[self.processor.index_col])
                 fig.update_layout(scene=dict(xaxis_title=f'{pca_x}: {exp_var_ratio[pca_x]}%',
                                   yaxis_title=f'{pca_y}: {exp_var_ratio[pca_y]}%',
                                   zaxis_title=f'{pca_z}: {exp_var_ratio[pca_z]}%'))
                 st.plotly_chart(fig,use_container_width=True)
             elif (pca_x and pca_y):
-                if not include_blanks:
-                    pca_results = pca_results[~pca_results.index.str.contains(self.processor.blank_idx)]
                 fig = px.scatter(pca_results.reset_index(),x=pca_x,y=pca_y,color=pca_hue,hover_data=[self.processor.index_col])
                 fig.update_layout(xaxis_title=f'{pca_x}: {exp_var_ratio[pca_x]}%',
                                   yaxis_title=f'{pca_y}: {exp_var_ratio[pca_y]}%')
@@ -132,40 +139,91 @@ class PhantomApp:
                                                 'x':0.5,
                                                 'xanchor':'center',
                                                 "yanchor":'top'})
-                st.plotly_chart(fig)
-
-            
+                st.plotly_chart(fig) 
     def batch_effect_correction_page(self):
         st.title("Batch Effect Correction")
-        st.write('Select Correction Method')
+        st.header("Select Normalization Method")
         col1_1,col1_2,col1_3,col1_4 = st.columns(4)
-        svr = col1_1.checkbox('QC-SVRC (QC-dependent,intra-batch)')
-        rfsc = col1_1.checkbox("QC-RFSC (QC-dependent,intra-batch)")
-        rsc = col1_2.checkbox("QC-RSC (QC-dependent,intra-batch)")
-        bh1 = col1_2.checkbox("QC-Mean-Adj (QC-dependent, inter-batch)")
-        limma = col1_3.checkbox("Limma (QC-independent,Linear Model")
-        combat = col1_3.checkbox("Combat (QC-independent,Linear Model)")
-        serrf = col1_4.checkbox("SERRF (QC-dependent,intra-/inter-batch)")
-        metnorm = col1_4.checkbox("MetNormalizer (QC-dependent, intra-/inter-batch)")
+        TIC = col1_1.checkbox("TIC Normalization")
+        IS = col1_2.checkbox("Internal Standards")
+        Median = col1_3.checkbox("Median Normalization")
+        st.divider()
+        st.header('Select Correction Method')
+        col2_1,col2_2,col2_3,col2_4 = st.columns(4)
+        svr = col2_1.checkbox('QC-SVRC')
+        rfsc = col2_1.checkbox("QC-RFSC")
+        rsc = col2_2.checkbox("QC-RSC")
+        bh1 = col2_2.checkbox("QC-Mean-Adj")
+        limma = col2_3.checkbox("Limma")
+        combat = col2_3.checkbox("Combat")
+        serrf = col2_4.checkbox("SERRF")
+        metnorm = col2_4.checkbox("MetNormalizer")
+
         if st.button("Run Batch Effect Correction"):
             st.session_state['batch_effect_correction'] = True
-        if self.processor is None and "uploaded_data" in st.session_state:
-            self.processor = FBSC(data=st.session_state["uploaded_data"],
-                                  metadata=st.session_state["uploaded_metadata"])
-        if st.session_state.get('batch_effect_correction',False):
-            if svr:
-                self.processor.set_method(method_id="QC-SVRC")
-                self.processor.fbsc_correction(between_batch=False)
-            elif (svr and bh1):
-                self.processor.set_method(method_id="QC-SVRC")
-                corrected = self.processor.fbsc_correction(between_batch=True)
+        if (st.session_state.get('batch_effect_correction',False) and isinstance(st.session_state['uploaded_data'],pd.DataFrame)):
+            if (svr and bh1):
+                self.processor = FBSC(data=st.session_state["uploaded_data"],
+                                      metadata=st.session_state["uploaded_metadata"])
+                with st.spinner(show_time=True):
+                    self.processor.set_method(method_id='QC-SVRC')
+                    corrected = self.processor.fbsc_correction(between_batch=True)
+                st.session_state['results'] = corrected
+                st.success("Correction Complete!")
+                st.dataframe(st.session_state.get("results"))
+            elif metnorm:
+                self.processor = MetNorm(data=st.session_state['uploaded_data'],
+                                         metadata=st.session_state['uploaded_metadata'],parallel=True,n_jobs=-1)
+                with st.spinner(show_time=True):
+                    corrected = self.processor.parallel_transform()
+                st.session_state['results'] = corrected
+                st.success("Correction Complete!")
+                st.dataframe(st.session_state.get("results"))
+            elif limma:
+                self.processor = LMBSC(data=st.session_state['uploaded_data'],
+                                       metadata=st.session_state['uploaded_metadata'],
+                                       method='Limma')
+                with st.spinner(show_time=True):
+                    corrected = self.processor.Limma()
+                st.session_state['results'] = corrected
+                st.success("Correction Complete!")
+                st.dataframe(st.session_state.get("results"))
+            elif combat:
+                self.processor = LMBSC(data=st.session_state['uploaded_data'],
+                                       metadata=st.session_state['uploaded_metadata'],
+                                       method='Combat')
 
+                with st.spinner(show_time=True):
+                    corrected = self.processor.Combat()
+                    st.session_state['results'] = corrected
+                st.success("Correction Complete!")
+                st.dataframe(st.session_state.get("results"))
             else:
                 st.write("Method Not Implemented Yet!")
         
 
     def evaluation_page(self):
-        st.write("Welcome to the evaluation page")
+        if st.button("Run Evaluation"):
+            st.session_state['evaluation'] = True
+        st.session_state.get('results')
+        if (st.session_state['evaluation'] and isinstance(st.session_state['results'],pd.DataFrame)):
+            self.processor = FBSC(data=st.session_state['results'],metadata=st.session_state['uploaded_metadata'])
+            st.dataframe(self.processor.data)
+            st.header('RSD Distribution')
+            batch_idx = st.selectbox(label="Select Batch",options=['All Batches'] + [int(x) for x in self.processor.n_batch],placeholder='batch',key='batch_selector')
+            if batch_idx:
+                dist,median_val = self.processor.RSD_distribution(batch=batch_idx)
+                fig = px.histogram(dist,x='RSD')
+                fig.add_vline(x=median_val,line_dash='dash',line_color='green',annotation_text=f'RSD Median: {np.round(median_val,2)}')
+                fig.update_layout(
+                    title={'text':f'RSD of QC features in batch index: {batch_idx}',
+                        'x':0.5,
+                        'xanchor':'center',
+                        'yanchor': 'top'
+                    },
+                    xaxis_title=f'RSD (%)',
+                    yaxis_title=f'count')
+                st.plotly_chart(fig)
 
 
 app = PhantomApp(processor=None)

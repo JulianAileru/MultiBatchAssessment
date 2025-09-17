@@ -16,4 +16,28 @@
         * move include all batches option to selectbox and not a separate checkbox (completed)
         * provide checkbox to plot individual sample types (completed)
         * Label sample with hoverover (need to do)
+## Batch Effect Correction Page
+    Implement the following methods for normalization:
+        TIC
+        InternalStandards
+        Median
+    Implement the following methods:
+        * QC-SVRC and QC-Mean-Adj (completed)
+        * MetNormalizer (comppleted)
+        * SERRF
+        * Limma (completed)
+        * Combat (completed)
+        * QC-RSC
+        * QC-RFSC
+    Implement workflow builder display to see whats going on
+    Should I add a quick display to see correction? (Maybe just save if for evaluation page)
+## Evaluation Page
+    Implement the following the following metrics
+        RSD Distribution (completed)
+            * If data is logged this should be indicated
+        D-ratio Distribution
+        PVCA
+        PCA
+
+
         

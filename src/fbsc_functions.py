@@ -8,6 +8,7 @@ from sklearn.svm import SVR
 from sklearn.model_selection import GridSearchCV,LeaveOneOut
 import warnings
 
+
 def RSD(D):
     if D.shape[0] > D.shape[1]:
         raise warnings.warn('Is Data of shape (n_samples,n_signals)?')
@@ -208,3 +209,20 @@ def BH1(D,M):
         batch -= error
         corrected.append(batch)
     return pd.concat(corrected,axis=0) 
+
+
+def pvca(data,metadata,covariates=['sample_type','batch','injection_order']):
+    D = data.copy()
+    M = metadata.copy()
+    D = D.apply(lambda x: (x-x.mean(axis=0))/x.std(axis=0,ddof=0))
+    covar_matrix = np.cov(D,rowvar=False)
+    eigenvalues,eigenvectors = np.linalg.eig(covar_matrix)
+    idx = np.argsort(eigenvalues)[::-1]
+    eigenvalues = eigenvalues[idx]
+    eigenvectors = eigenvectors[:,idx]
+    pca_df = D @ eigenvectors
+    pca_df = pd.DataFrame(pca_df, index=D.index, columns=[f'PC{i+1}' for i in range(pca_df.shape[1])])
+    pc_idx = np.cumsum(eigenvalues)
+
+
+
