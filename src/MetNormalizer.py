@@ -18,12 +18,21 @@ class metnorm_info:
     model : Optional[SVR] = None
     qc_str : str = "_SP_"
     parallel : bool = False
+    apply_log: bool = True
+    fill_na: bool = True
+
     n_jobs: Optional[int] = None
 
 
     def __post_init__(self):
         self.data = self.data.copy()
         self.metadata = self.metadata.copy()
+        self.apply_log = True
+        self.fill_na = True
+        if (self.fill_na and self.apply_log):
+            self.data = self.data.fillna(self.data.min().min())
+            self.data = np.log2(self.data)
+        
         self.model = self.model if self.model else SVR(gamma='auto')
         self.QC = self.data[self.data.index.str.contains(self.qc_str)]
         self.Bio = self.data[~self.data.index.str.contains(self.qc_str)]

@@ -95,10 +95,10 @@ class LMBSC(info):
 # d = pd.read_csv("/Users/jaileru/GitHub/batch-effects-dashboard/data/streamlit_sample_data.csv").set_index("sample_name")
 # m = pd.read_csv("/Users/jaileru/GitHub/batch-effects-dashboard/data/streamlit_sample_metadata.csv").set_index("sample_name")
 
-# test = LMBSC(d,m,method='Combat',apply_log=True,fill_na='min_value')
+# test = LMBSC(d,m,method='Limma',apply_log=True,fill_na='min_value')
 
 # print(test.D.shape)
 # print(test.M.shape)
-# results = test.Combat()
+# results = test.Limma()
 
-#pca_plot(results,m)
+# pca_plot(results,m)

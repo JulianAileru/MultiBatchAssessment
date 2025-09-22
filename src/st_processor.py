@@ -1,16 +1,17 @@
-import plotly.express as px 
 import pandas as pd
 import numpy as np
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 from joblib import Parallel,delayed, parallel_backend
-from stqdm import stqdm
 from tqdm import tqdm
 from sklearn.model_selection import LeaveOneOut,GridSearchCV
 from sklearn.svm import SVR
 from dataclasses import dataclass,field
 from typing import Optional
-
+from pymer4.models import lmer
+from pymer4 import make_rfunc
+import patsy
+import polars as pl
 @dataclass
 class FBSC_info:
     data : pd.DataFrame
@@ -150,8 +151,6 @@ class FBSC(FBSC_info):
             adjusted_qc = (qc_intensity - fitted_values) + qc_intensity.median()
             adjusted_bio = (bio_intensity - predicted_values) + qc_intensity.median()
         return pd.concat([adjusted_qc,adjusted_bio],axis=0)
-    def correct_column(self, col, QC, Bio, qc_injection_order, bio_injection_order, qc1):
-        return self.svr_function(QC[col], Bio[col], qc_injection_order, bio_injection_order, qc1)
     
     def QC_SVRC(self,n_jobs=-1,qc='SP'):
         data = self.data.copy()
@@ -189,15 +188,60 @@ class FBSC(FBSC_info):
             inter_batch_correct = self.BH1(intra_batch_correct,qc_idx='SP')
             return inter_batch_correct
         return intra_batch_correct
+    @staticmethod
+    def pvca(data,metadata,explained_variance=.50):
+        var_comp = make_rfunc("""
+                      function(model){
+                      output <- VarCorr(model)
+                      return(output)
+                      }
+                      """)
+        sigma = make_rfunc("""
+                   function(model){
+                   output <- sigma(model)^2
+                   return(output)
+                   }
+                   """)
+        D = data.copy()
+        D = D.fillna(D.min().min())
+        D_std = D.apply(lambda x: (x-x.mean(axis=0))/x.std(axis=0))
+        pca = PCA()  
+        pca_result = pca.fit_transform(D_std)
+        exp_var = pca.explained_variance_ratio_
+        eigenvalues = pca.explained_variance_
+        eigenvectors = pca.components_.T
+        cumsum = np.cumsum(exp_var)
+        pc_idx = np.argmax(cumsum >= explained_variance) + 1
+        eigenvalues_kept = eigenvalues[:pc_idx]
+        eigenvectors_kept = eigenvectors[:,:pc_idx]
+        pca_df = pd.DataFrame(pca_result[:, :pc_idx], 
+                        index=D.index, 
+                        columns=[f'PC{i+1}' for i in range(pc_idx)])
+        pca_df['batch'] = metadata['batch'].astype('category')
+        pca_df['sample_type'] = metadata['sample_type'].astype('category')
+        pca_df = pl.from_pandas(pca_df)
+        lst = []
+        for PC in tqdm([x for x in pca_df.columns if x.startswith("PC")],desc='Applying LMM to PCs'):
+            model = lmer(f"{PC} ~ (1|sample_type) + (1|batch)",data=pca_df,REML=True)
+            model.fit()
+            vca = var_comp(model.r_model)
+            sig = sigma(model.r_model)
+            lst.append(pd.DataFrame(np.hstack([np.array(vca).ravel(),np.array(sig)]),columns=[f'{PC}'],index=['batch','sample_type','residuals']))
+        variance_components = pd.concat(lst,axis=1).T
+        variance_components_std = variance_components.div(variance_components.sum(axis=1),axis='index')
+        weights = eigenvalues[:len(eigenvalues_kept)] / np.sum(eigenvalues)
+        variance_components_weighted = variance_components_std * weights[:,None]
+        random_effects = variance_components_weighted.sum() / variance_components_weighted.sum().sum()
+        return random_effects*100,explained_variance
 
 
-# test = FBSC(data=pd.read_csv('/Users/jaileru/GitHub/batch-effects-dashboard/data/streamlit_sample_data.csv'),
-#             metadata=pd.read_csv('/Users/jaileru/GitHub/batch-effects-dashboard/data/streamlit_sample_metadata.csv'),demo=False)
+test = FBSC(data=pd.read_csv('/Users/jaileru/GitHub/batch-effects-dashboard/data/streamlit_sample_data.csv'),
+            metadata=pd.read_csv('/Users/jaileru/GitHub/batch-effects-dashboard/data/streamlit_sample_metadata.csv'),demo=False)
 
 # test
 # FBSC.pca_plot(D=test.D,M=test.M,pca_hue='sample_type')
 # test.plot_signal_drift(batch_idx='Random',signal_idx='Random',include_all_batches=True)
 # test.set_method(method_id='QC-SVRC')  
 # test.fbsc_correction(between_batch=True)        
-
+#FBSC.pvca(data=test.data,metadata=test.metadata)
     
