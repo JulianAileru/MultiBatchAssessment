@@ -1,5 +1,5 @@
 # batch-effects-dashboard
-A python dashboard to assess the contribution and removal of batch effects in large-scale untargeted metabolomics data 
+A python [dashboard](https://github.com/JulianAileru/Phantom/blob/main/src/dashboard.py) to assess the contribution and removal of batch effects in large-scale untargeted metabolomics data 
 
 
 QC-Dependent methods (requires QC samples):
