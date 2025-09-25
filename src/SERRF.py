@@ -48,6 +48,7 @@ class serrf_info:
     metadata : pd.DataFrame
     fill_missing : bool = False
     rowvar : bool = True
+    n_jobs : int = -1
     def __post_init__(self):
         self.D = self.data.copy()
         self.M = self.metadata.copy()
@@ -332,7 +333,7 @@ class SERRF(serrf_info):
             self.compute_correlation()
             self.top_correlated(n=num_features)
             normalized_signals = []
-            normalized_signals = Parallel(n_jobs=-1)(delayed(SERRF.fit_predict)(all_data=self.all_data,current_batch=self.current_batch,
+            normalized_signals = Parallel(n_jobs=self.n_jobs)(delayed(SERRF.fit_predict)(all_data=self.all_data,current_batch=self.current_batch,
                                                                                 features=self.features,signal=signal) 
                                                                                 for signal in tqdm(self.signals,desc=f'\t Buliding models for batch {batch}'))
             #For debuging per signal
