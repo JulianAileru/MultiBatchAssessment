@@ -1,6 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.decomposition import PCA
+from sklearn.ensemble import RandomForestRegressor
 from sklearn.preprocessing import StandardScaler
 from joblib import Parallel,delayed, parallel_backend
 from tqdm import tqdm
@@ -11,6 +12,7 @@ from typing import Optional
 from pymer4.models import lmer
 from pymer4 import make_rfunc
 import patsy
+from utils import pca_plot
 import polars as pl
 @dataclass
 class FBSC_info:
@@ -66,14 +68,25 @@ class FBSC(FBSC_info):
             median_val = dist['RSD'].median(axis=0)
         return dist,median_val
     @staticmethod
-    def pca_plot(D,M,pca_hue,imputation_method='min_value',x='PC1',y='PC2',include_blanks=False):
+    def TIC(D,scale=True):
+        result = D.apply(lambda x: x/x.sum(),axis=1)
+        if scale:
+            result *= D.sum(axis=1).mean()
+        return result
+
+    @staticmethod
+    def pca_plot(D,M,pca_hue,imputation_method='Minimum Value',normalization_method=None,x='PC1',y='PC2',include_blanks=False):
         D_ = D.copy() 
         M_ = M.copy()
         if not include_blanks:
             D_=D_[~D_.index.str.contains("_B_")]
             M_=M_.loc[D_.index,:]
-        if imputation_method == 'min_value':
+        if imputation_method == 'Minimum Value':
             D_ = D_.fillna(D_.min().min())
+        if normalization_method == None:
+            pass
+        elif normalization_method == "TIC":
+            D_ = FBSC.TIC(D_,scale=True)
 
         pca = PCA()
         scaler = StandardScaler()
@@ -151,7 +164,45 @@ class FBSC(FBSC_info):
             adjusted_qc = (qc_intensity - fitted_values) + qc_intensity.median()
             adjusted_bio = (bio_intensity - predicted_values) + qc_intensity.median()
         return pd.concat([adjusted_qc,adjusted_bio],axis=0)
-    
+    @staticmethod
+    def rfr_function(qc_intensity,bio_intensity,qc_injection_order,bio_injection_order,cv=False):
+        if qc_intensity.isna().sum() > 5:
+            return pd.concat([qc_intensity,bio_intensity],axis=0)
+        else: 
+            qc_no_outliers = FBSC.remove_qc_outliers(intensity=qc_intensity)
+            qc_inj_no_outliers = qc_injection_order[qc_no_outliers.index]
+            if qc_no_outliers.empty:
+                return pd.concat([qc_intensity,bio_intensity],axis=0)
+            X = qc_inj_no_outliers.to_numpy().reshape(-1,1)
+            y = qc_no_outliers.to_numpy().ravel()
+            if cv:
+                rfr = RandomForestRegressor()
+                params = {'max_depth':[3,5,10,None],'min_samples_leaf':[1,3,5,10],'max_features':[1,'sqrt','log2'],"n_estimators":[500]}
+                cv = GridSearchCV(rfr,params,n_jobs=1,scoring='neg_root_mean_squared_error',cv=LeaveOneOut())
+                cv.fit(X,y)
+                model = cv.best_estimator_
+            else:
+                model = RandomForestRegressor(n_estimators=500,max_depth=None,min_samples_leaf=3,random_state=0)
+                model.fit(X,y)
+            fitted_values = pd.Series(model.predict(qc_injection_order.to_numpy().reshape(-1,1)),index=qc_intensity.index,name=qc_intensity.name)
+            predicted_values = pd.Series(model.predict(bio_injection_order.to_numpy().reshape(-1,1)),index=bio_intensity.index,name=bio_intensity.name)
+            adjusted_qc = (qc_intensity / fitted_values) * qc_intensity.median()
+            adjusted_bio = (bio_intensity / predicted_values) * qc_intensity.median()
+        return pd.concat([adjusted_qc,adjusted_bio],axis=0)
+    def QC_RFSC(self,n_jobs=-1,qc='SP'):
+        data = self.data.copy()
+        metadata = self.metadata.copy()
+        group_by_batch = data.groupby(metadata['batch'])
+        lst = []
+        for idx,batch in group_by_batch:
+            QC = batch[batch.index.str.contains(f"{qc}")]
+            qc1 = metadata.loc[QC.index, 'injection_order'].idxmin()
+            Bio = batch[~batch.index.str.contains(f"{qc}")]
+            qc_injection_order = metadata.loc[QC.index,'injection_order']
+            bio_injection_order = metadata.loc[Bio.index,'injection_order']
+            results = Parallel(n_jobs=n_jobs)(delayed(FBSC.rfr_function)(QC[col],Bio[col],qc_injection_order,bio_injection_order) for col in tqdm(QC.columns,desc=f'Correcting signals...'))
+            lst.append(pd.concat(results,axis=1))
+        return pd.concat(lst,axis=0)
     def QC_SVRC(self,n_jobs=-1,qc='SP'):
         data = self.data.copy()
         metadata = self.metadata.copy()
@@ -182,6 +233,8 @@ class FBSC(FBSC_info):
     def fbsc_correction(self,between_batch=True):
         if self.method == 'QC-SVRC':
             intra_batch_correct = self.QC_SVRC()
+        elif self.method == 'QC-RFSC':
+            intra_batch_correct = self.QC_RFSC()
         else:
             raise ValueError("Method Not Implemented")
         if between_batch:
@@ -189,7 +242,7 @@ class FBSC(FBSC_info):
             return inter_batch_correct
         return intra_batch_correct
     @staticmethod
-    def pvca(data,metadata,explained_variance=.50):
+    def pvca(data,metadata,explained_variance=.50,imputation_method='Minimum Value',normalization_method=None):
         var_comp = make_rfunc("""
                       function(model){
                       output <- VarCorr(model)
@@ -203,7 +256,12 @@ class FBSC(FBSC_info):
                    }
                    """)
         D = data.copy()
-        D = D.fillna(D.min().min())
+        if imputation_method == "Minimum Value":
+            D = D.fillna(D.min().min())
+        if normalization_method == None:
+            pass
+        elif normalization_method == "TIC":
+            D = FBSC.TIC(D,scale=True)
         D_std = D.apply(lambda x: (x-x.mean(axis=0))/x.std(axis=0))
         pca = PCA()  
         pca_result = pca.fit_transform(D_std)
@@ -235,13 +293,13 @@ class FBSC(FBSC_info):
         return random_effects*100,explained_variance
 
 
-test = FBSC(data=pd.read_csv('/Users/jaileru/GitHub/batch-effects-dashboard/data/streamlit_sample_data.csv'),
-            metadata=pd.read_csv('/Users/jaileru/GitHub/batch-effects-dashboard/data/streamlit_sample_metadata.csv'),demo=False)
-
-# test
-# FBSC.pca_plot(D=test.D,M=test.M,pca_hue='sample_type')
-# test.plot_signal_drift(batch_idx='Random',signal_idx='Random',include_all_batches=True)
-# test.set_method(method_id='QC-SVRC')  
-# test.fbsc_correction(between_batch=True)        
-#FBSC.pvca(data=test.data,metadata=test.metadata)
-    
+# test = FBSC(data=pd.read_csv('/Users/jaileru/GitHub/batch-effects-dashboard/data/streamlit_sample_data.csv'),
+#             metadata=pd.read_csv('/Users/jaileru/GitHub/batch-effects-dashboard/data/streamlit_sample_metadata.csv'),demo=True,method='QC-RFSC')
+# corrected = test.fbsc_correction(between_batch=True)
+# FBSC.pca_plot(D=corrected,M=test.metadata,pca_hue='sample_type')
+# # test
+# # FBSC.pca_plot(D=test.D,M=test.M,pca_hue='sample_type')
+# x,y,df = test.plot_signal_drift(batch_idx='Random',signal_idx='Random',include_all_batches=True)
+# # test.set_method(method_id='QC-SVRC')          
+# #FBSC.pvca(data=test.data,metadata=test.metadata)
+# print(df)

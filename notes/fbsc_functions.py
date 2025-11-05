@@ -211,18 +211,55 @@ def BH1(D,M):
     return pd.concat(corrected,axis=0) 
 
 
-def pvca(data,metadata,covariates=['sample_type','batch','injection_order']):
-    D = data.copy()
-    M = metadata.copy()
-    D = D.apply(lambda x: (x-x.mean(axis=0))/x.std(axis=0,ddof=0))
-    covar_matrix = np.cov(D,rowvar=False)
-    eigenvalues,eigenvectors = np.linalg.eig(covar_matrix)
-    idx = np.argsort(eigenvalues)[::-1]
-    eigenvalues = eigenvalues[idx]
-    eigenvectors = eigenvectors[:,idx]
-    pca_df = D @ eigenvectors
-    pca_df = pd.DataFrame(pca_df, index=D.index, columns=[f'PC{i+1}' for i in range(pca_df.shape[1])])
-    pc_idx = np.cumsum(eigenvalues)
+def pvca(data,metadata,explained_variance=.50,imputation_method='Minimum Value',normalization_method=None):
+        var_comp = make_rfunc("""
+                      function(model){
+                      output <- VarCorr(model)
+                      return(output)
+                      }
+                      """)
+        sigma = make_rfunc("""
+                   function(model){
+                   output <- sigma(model)^2
+                   return(output)
+                   }
+                   """)
+        D = data.copy()
+        if imputation_method == "Minimum Value":
+            D = D.fillna(D.min().min())
+        if normalization_method == None:
+            pass
+        elif normalization_method == "TIC":
+            D = TIC(D,scale=True)
+        D_std = D.apply(lambda x: (x-x.mean(axis=0))/x.std(axis=0))
+        pca = PCA()  
+        pca_result = pca.fit_transform(D_std)
+        exp_var = pca.explained_variance_ratio_
+        eigenvalues = pca.explained_variance_
+        eigenvectors = pca.components_.T
+        cumsum = np.cumsum(exp_var)
+        pc_idx = np.argmax(cumsum >= explained_variance) + 1
+        eigenvalues_kept = eigenvalues[:pc_idx]
+        eigenvectors_kept = eigenvectors[:,:pc_idx]
+        pca_df = pd.DataFrame(pca_result[:, :pc_idx], 
+                        index=D.index, 
+                        columns=[f'PC{i+1}' for i in range(pc_idx)])
+        pca_df['batch'] = metadata['batch'].astype('category')
+        pca_df['sample_type'] = metadata['sample_type'].astype('category')
+        pca_df = pl.from_pandas(pca_df)
+        lst = []
+        for PC in tqdm([x for x in pca_df.columns if x.startswith("PC")],desc='Applying LMM to PCs'):
+            model = lmer(f"{PC} ~ (1|sample_type) + (1|batch)",data=pca_df,REML=True)
+            model.fit()
+            vca = var_comp(model.r_model)
+            sig = sigma(model.r_model)
+            lst.append(pd.DataFrame(np.hstack([np.array(vca).ravel(),np.array(sig)]),columns=[f'{PC}'],index=['batch','sample_type','residuals']))
+        variance_components = pd.concat(lst,axis=1).T
+        variance_components_std = variance_components.div(variance_components.sum(axis=1),axis='index')
+        weights = eigenvalues[:len(eigenvalues_kept)] / np.sum(eigenvalues)
+        variance_components_weighted = variance_components_std * weights[:,None]
+        random_effects = variance_components_weighted.sum() / variance_components_weighted.sum().sum()
+        return random_effects*100,explained_variance
 
 
 

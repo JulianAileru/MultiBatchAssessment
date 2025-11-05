@@ -1,0 +1,19 @@
+channels:
+  - ejolly
+  - conda-forge
+  - bioconda
+  - defaults
+  - https://repo.anaconda.com/pkgs/main
+  - https://repo.anaconda.com/pkgs/r
+dependencies:
+  - numpy
+  - pandas
+  - scipy
+  - tqdm
+  - ipykernel
+  - mamba
+  - multiqc
+  - graphviz
+  - pymer4
+  - ipywidgets
+  - streamlit
