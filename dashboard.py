@@ -11,13 +11,17 @@ from utils.functions import *
 from src.base import *
 import uuid 
 from datetime import datetime
-from streamlit_autorefresh import st_autorefresh
+import re
 import threading
 
 class PhantomApp:
     def __init__(self):
         self.logger = self.setup_logger()
         self.processor = None
+        self.class_lib = {"File Upload": r"\[PhantomApp\]",
+                          "Diagnostics": r"\[Assessment\]",
+                          "Batch Effect Correction":r"^(?!.*(\[Assessment\]|\[Evaluation\]|\[PhantomApp\])).*$",
+                          "Evaluation": r"\[Evaluation\]"}
     def setup_logger(self):
         # Only generate a new file once per session
         if 'log_filename' not in st.session_state:
@@ -37,23 +41,24 @@ class PhantomApp:
         logger = logging.getLogger(f"{self.__class__.__name__}")
         #logger.info(f"Logger initialized: {st.session_state['log_filename']}")
         return logger
+    def sidebar_logstream(self,page):
+        if page != 'Home':
+            with st.sidebar.container():
+                col1,col2 = st.columns([1,1],vertical_alignment='bottom')
+                col1.title("Log Info")
+                col2.button("Refresh")
+                st.session_state['log_position'] = PhantomApp.display_log_file(file=st.session_state['log_filename'],filter_str=self.class_lib.get(page),position=st.session_state.get('log_position',0))
     def run(self):
         page = st.sidebar.selectbox("Choose a page", 
                                     ["Home","File Upload","Diagnostics","Batch Effect Correction","Evaluation"])
-        if page == "Home":
-            #self.logger.info("Initalizing Home Page") 
-            self.home_page()
-        elif page == 'File Upload':
-            self.file_upload_page()
-        elif page == "Diagnostics":
-            #self.logger.info('Initalizing Diagnostics Page')
-            self.diagnostics_page()
-        elif page == "Batch Effect Correction":
-            #self.logger.info('Initalizing Batch Effect Correction Page')
-            self.batch_effect_correction_page()
-        elif page == "Evaluation":
-            #self.logger.info('Initalizing Evaluation Page')
-            self.evaluation_page()
+        page_library = {"Home":self.home_page,
+                       "File Upload":self.file_upload_page,
+                       "Diagnostics": self.diagnostics_page,
+                       "Batch Effect Correction": self.batch_effect_correction_page,
+                       "Evaluation": self.evaluation_page}
+        page_func = page_library.get(page,"Home")
+        page_func()
+        self.sidebar_logstream(page=page)
     @staticmethod
     def generate_log_file():
         timestamp = datetime.now().strftime('%Y%m%d')
@@ -67,20 +72,23 @@ class PhantomApp:
         )
         st.session_state['log_filename'] = log_filename
     @staticmethod        
-    def display_log_file(file,position=0):
+    def display_log_file(file,filter_str,position=0):
         LOG_FILE = Path(file)
         log_container = st.container()
-        with log_container:
-            if LOG_FILE.exists():
-                with LOG_FILE.open() as f1:
-                    f1.seek(position)
-                    new_content = f1.read()
-                    if new_content:
-                        log_container.code(new_content)
-                    position = f1.tell()
-            else:
-                log_container.warning("No Log File Found")
+        if not LOG_FILE.exists():
+            log_container.warning("No Log File Found")
+            return position
+        with LOG_FILE.open() as f1:
+            f1.seek(position)
+            matching_lines = []
+            for line in f1:
+                pattern = re.compile(filter_str)
+                if pattern.search(line):
+                    matching_lines.append(line.strip())
+            log_container.code("\n".join(matching_lines))
+            position = f1.tell()
         return position
+
     @staticmethod
     def display_n_lines(file,position=0,num_lines=1):
         LOG_FILE = Path(file)
@@ -105,7 +113,8 @@ class PhantomApp:
                                     metadata=metadata)
         st.session_state['results'] = corrected
 
-    def home_page(self):           
+    def home_page(self):
+        st.session_state['page'] = "Home"           
         st.title("ADAP-MultiBatchAssessment")
         st.write("### A dashboard for assessing and " \
         "correcting batch effects in large-scale untargeted metabolomics datasets")
@@ -129,28 +138,20 @@ class PhantomApp:
         st.write("- Limma")
         st.write("- Combat")
     def file_upload_page(self):
-        with st.sidebar:
-            col1,col2 = st.columns([1,1],vertical_alignment='bottom')
-            col1.title("Log Info")
-            refresh = col2.button('Refresh')
-            st_autorefresh(interval=5*60*1000,key='log_refresh')
-            st.session_state['log_position'] = PhantomApp.display_log_file(file=st.session_state['log_filename'],position=st.session_state.get('log_position',0))
+        st.session_state['page'] = 'File Upload'
         col1,col2= st.columns(2,gap='large')
         data = col1.file_uploader("Upload Data",accept_multiple_files=False,type='csv')
         metadata = col2.file_uploader("Upload Metadata",accept_multiple_files=False,type='csv')
-        if data:
-            st.session_state['uploaded_data'] = pd.read_csv(data)
-            self.logger.info("Data Upload Successful")
-            
-        if metadata:
-            st.session_state['uploaded_metadata'] = pd.read_csv(metadata)
-            self.logger.info("Metadata Upload Successful")
         if data and metadata:
+            st.session_state['uploaded_data'] = pd.read_csv(data)
+            st.session_state['uploaded_metadata'] = pd.read_csv(metadata)
+            self.logger.info("Data Upload Successful")
+            self.logger.info("Metadata Upload Successful")
             idx_options = list(set(st.session_state['uploaded_data'].columns) & set(st.session_state['uploaded_metadata'].columns))
             qc_options = list(st.session_state["uploaded_metadata"]['sample_type'].unique())
             blank_options = list(st.session_state["uploaded_metadata"]['sample_type'].unique())
             qc_options = [str(x).upper() for x in qc_options]
-            blank_options = [str(x).upper() for x in blank_options]
+            blank_options = [str(x).upper() for x in blank_options] + [None]
             self.logger.info(f"Selecting Index Column, Options Available:{idx_options} ")
             index_col = col1.selectbox("Select Index Column",options=idx_options)
             if index_col:
@@ -173,12 +174,7 @@ class PhantomApp:
                 st.session_state['blank_identifier'] = blank_identifier
                 col1.success('Data Import Successful')
     def diagnostics_page(self):
-        with st.sidebar:
-            col1,col2 = st.columns([1,1],vertical_alignment='bottom')
-            col1.title("Log Info")
-            refresh = col2.button('Refresh')
-            st_autorefresh(interval=5*60*1000,key='log_refresh')
-            st.session_state['log_position'] = PhantomApp.display_log_file(file=st.session_state['log_filename'],position=st.session_state.get('log_position',0))
+        st.session_state['page'] = 'Diagnostics'
         if st.button("Run Pre-Correction Assessment"):
             self.logger.info("Generating Diagnostic Plots")
             st.session_state["run_diagnostics"] = True
@@ -325,17 +321,12 @@ class PhantomApp:
                 st.session_state['Signal Drift Key'] = signal_drift_key
                 st.plotly_chart(fig,key='SignalDrift')
     def batch_effect_correction_page(self):
-        with st.sidebar:
-            col1,col2 = st.columns([1,1],vertical_alignment='bottom')
-            col1.title("Log Info")
-            refresh = col2.button('Refresh')
-            #st_autorefresh(interval=10000,key='log_refresh')
-            st.session_state['log_position'] = PhantomApp.display_log_file(file=st.session_state['log_filename'],position=st.session_state.get('log_position',0))
+        st.session_state['page'] = 'BatchCorrection'
         st.title("Batch Effect Correction")
         col2_1,col2_2,col2_3 = st.columns(3)
         normalization_method = col2_1.selectbox(label='Select Normalization Method',options=['TIC','Median',"Mean",None])
         imputation_method = col2_2.selectbox(label='Select Imputation Method',options=['Global Minimum Value',"Mean","Median",None])
-        log_transform = col2_3.selectbox(label='Log Transform',options=[True,False])
+        transformation_method = col2_3.selectbox(label='Log Transform',options=["Log2 Transformation","Natural Log Transformation",None])
         qc_str = col2_1.text_input("Enter QC Identifier",value=st.session_state.get("qc_identifier",""))
         blank_str = col2_2.text_input("Enter Blank Identifier",value=st.session_state.get('blank_identifier',""))
         if (qc_str and blank_str):
@@ -344,95 +335,40 @@ class PhantomApp:
             st.dataframe(meta['sample_name'].str.rsplit('_', n=1).str[-1].value_counts())
         st.divider()
         st.header('Select Correction Method')
-        col2_1,col2_2,col2_3,col2_4 = st.columns(4)
-        svrc = col2_1.checkbox('QC-SVRC')
-        rfsc = col2_1.checkbox("QC-RFSC")
-        bh1 = col2_2.checkbox("QC-Mean-Adjustment")
-        limma = col2_2.checkbox("Limma")
-        combat = col2_2.checkbox("Combat")
-        serrf = col2_3.checkbox("SERRF")
-        metnorm = col2_3.checkbox("MetNormalizer")
+        method_option = st.selectbox(label='Methods',options=['Limma','ComBat','SERRF','MetNormalizer','QC-Mean-Adjustment','QC-SVRC',"QC-RFSC"])
+        st.session_state['method_option'] = method_option
+        algorithms = {"Limma":Limma,
+                      "ComBat":Combat,
+                      "SERRF":SERRF,
+                      "MetNormalizer":MetNormalizer,
+                      "QC-Mean-Adjustment":BroadHurst,
+                      "QC-SVRC":QC_SVRC,
+                      "QC-RFSC":QC_RFSC}
+        Method = algorithms.get(method_option,Limma)
         if st.button("Run Batch Effect Correction"):
             st.session_state['batch_effect_correction'] = True
         if (st.session_state.get('batch_effect_correction',False) and isinstance(st.session_state['uploaded_data'],pd.DataFrame)):
-            if (svrc):
-                pipeline = BatchCorrectionPipeline(method=QC_SVRC(qc_str=qc_str,blank_str=blank_str),
-                                                   preprocessing_config=Preprocessor(imputation_method=imputation_method,normalization_method=normalization_method,log_transform=log_transform))
+            pipeline = BatchCorrectionPipeline(method=Method(qc_str=qc_str,blank_str=blank_str),
+                                                preprocessing_config=Preprocessor(imputation_method=imputation_method,normalization_method=normalization_method,transformation_method=transformation_method))
 
-                with st.spinner(show_time=True):
+            with st.spinner(show_time=True):
+                if Method in [MetNormalizer,SERRF,QC_RFSC,QC_SVRC]:
                     thread = threading.Thread(target=PhantomApp.run_pipeline,
-                                              args=(st.session_state['uploaded_data'],
+                                                args=(st.session_state['uploaded_data'],
                                                     st.session_state['uploaded_metadata'],pipeline),
-                                              daemon=True)
+                                                daemon=True)
                     thread.start()
                     thread.join()
-                st.success("Correction Complete!")
-                st.dataframe(st.session_state.get("results"))
-            elif metnorm:
-                pipeline = BatchCorrectionPipeline(method=MetNormalizer(qc_str=qc_str,blank_str=blank_str),
-                                                   preprocessing_config=Preprocessor(imputation_method=imputation_method,normalization_method=normalization_method,log_transform=log_transform))
-                with st.spinner(show_time=True):
-                    corrected = pipeline.correct(data=st.session_state['uploaded_data'],
-                                                 metadata=st.session_state['uploaded_metadata'])
-                st.session_state['results'] = corrected
-                st.success("Correction Complete!")
-                st.dataframe(st.session_state.get("results"))
-            elif limma:
-                pipeline = BatchCorrectionPipeline(method=Limma(covariates=['batch'],qc_str=qc_str,blank_str=blank_str),
-                                                   preprocessing_config=Preprocessor(imputation_method=imputation_method,normalization_method=normalization_method,log_transform=log_transform))
-                with st.spinner(show_time=True):
-                    corrected = pipeline.correct(data=st.session_state['uploaded_data'],
-                                                 metadata=st.session_state['uploaded_metadata'])
-                st.session_state['results'] = corrected
-                st.success("Correction Complete!")
-                st.dataframe(st.session_state.get("results"))
-            elif combat:
-                pipeline = BatchCorrectionPipeline(method=Combat(qc_str=qc_str,blank_str=blank_str),
-                                                   preprocessing_config=Preprocessor(imputation_method=imputation_method,normalization_method=normalization_method,log_transform=log_transform))
-
-                with st.spinner(show_time=True):
-                    corrected = pipeline.correct(data=st.session_state['uploaded_data'],
-                                                 metadata=st.session_state['uploaded_metadata'])
-                    st.session_state['results'] = corrected
-                st.success("Correction Complete!")
-                st.dataframe(st.session_state.get("results"))
-            elif serrf:
-                pipeline = BatchCorrectionPipeline(method=SERRF(qc_str=qc_str,blank_str=blank_str),
-                                                   preprocessing_config=Preprocessor(imputation_method=imputation_method,log_transform=log_transform))
-                with st.spinner(show_time=True):
-                    corrected = pipeline.correct(data=st.session_state['uploaded_data'],
-                                                 metadata=st.session_state['uploaded_metadata'])
-                st.session_state['results'] = corrected
-                st.success("Correction Complete!")
-                st.dataframe(st.session_state.get("results"))
-            elif rfsc:
-                pipeline = BatchCorrectionPipeline(method=QC_RFSC(qc_str=qc_str,blank_str=blank_str),
-                                                   preprocessing_config=Preprocessor(imputation_method=imputation_method,log_transform=log_transform))
-                with st.spinner(show_time=True):
-                    corrected = pipeline.correct(data=st.session_state['uploaded_data'],
-                                                 metadata=st.session_state['uploaded_metadata'])
-                st.session_state['results'] = corrected
-                st.success("Correction Complete!")
-                st.dataframe(st.session_state.get("results"))
-            elif bh1:
-                pipeline = BatchCorrectionPipeline(method=BroadHurst(qc_str=qc_str,blank_str=blank_str),
-                                                   preprocessing_config=Preprocessor(imputation_method=imputation_method,log_transform=log_transform))
-                with st.spinner(show_time=True):
-                    corrected = pipeline.correct(data=st.session_state['uploaded_data'],
-                                                 metadata=st.session_state['uploaded_metadata'])
-                st.session_state['results'] = corrected
-                st.success("Correction Complete!")
-                st.dataframe(st.session_state.get("results"))
+                else:
+                    results = pipeline.correct(st.session_state['uploaded_data'],
+                                     st.session_state['uploaded_metadata'])
+                    st.session_state['results'] = results
+            st.success("Correction Complete!")
+            st.dataframe(st.session_state.get("results"))
         
 
     def evaluation_page(self):
-        with st.sidebar:
-            col1,col2 = st.columns([1,1],vertical_alignment='bottom')
-            col1.title("Log Info")
-            refresh = col2.button('Refresh')
-            st_autorefresh(interval=5*60*1000,key='log_refresh')
-            st.session_state['log_position'] = PhantomApp.display_log_file(file=st.session_state['log_filename'],position=st.session_state.get('log_position',0))
-
+        st.session_state['page'] = 'Evaluation'
         if st.button("Run Evaluation"):
             st.session_state['evaluation'] = True
             self.logger.info("Generating Evaluation Plots")
@@ -485,11 +421,11 @@ class PhantomApp:
                 if st.session_state.get("eval_PCA_key",False) == eval_pca_key:
                     fig = st.session_state['eval_PCA']
                 else:
-                    exp_var_ratio,pca_results = Evaluation.pca_plot(D=st.session_state['results'],
-                                                        M=st.session_state['uploaded_metadata'],
-                                                        pca_hue=pca_hue,include_blanks=include_blanks,
-                                                        imputation_method=imputation_method,
-                                                        normalization_method=normalization_method)
+                    exp_var_ratio,pca_results = self.processor.pca_plot(pca_hue=pca_hue,
+                                                                        include_blanks=include_blanks,
+                                                                        imputation_method=imputation_method,
+                                                                        normalization_method=normalization_method,
+                                                                        blank_str=st.session_state['blank_identifier'])
 
                     if all([pca_x,pca_y,pca_z]):
                         fig = px.scatter_3d(pca_results.reset_index(),x=pca_x,y=pca_y,z=pca_z,color=pca_hue,hover_data=[self.processor.index_col])
@@ -516,10 +452,7 @@ class PhantomApp:
                     if st.session_state.get("eval_PVCA_key",False) == eval_pvca_key:
                         random_effects,total_var = st.session_state['eval_PVCA']
                     else:
-                        random_effects,total_var = self.processor.pvca(
-                            explained_variance=explained_variance,
-                            normalization_method=normalization_method,
-                            imputation_method=imputation_method)
+                        random_effects,total_var = self.processor.pvca(explained_variance=explained_variance,)
                         st.session_state['eval_PVCA'] = random_effects,total_var
                         st.session_state['eval_PVCA_key'] = eval_pvca_key
                 fig = px.bar(x=random_effects.index,y=random_effects.values)

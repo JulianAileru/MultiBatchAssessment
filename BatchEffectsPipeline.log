@@ -51,3 +51,11 @@ Design Formula:1 + C(batch,Sum)
 2025-11-05 14:27:07 [MetNormalizer] INFO Normalizing Signals
 2025-11-05 14:27:10 [MetNormalizer] INFO Scaling Data by Median
 2025-11-05 14:27:10 [MetNormalizer] INFO Correction Complete
+2025-11-05 14:32:41 [rpy2.rinterface_lib.embedded] INFO Embedded R ended.
+2025-11-05 14:32:41 [rpy2.rinterface_lib.embedded] INFO Embedded R ended.
+2025-11-05 14:32:41 [rpy2.rinterface_lib.embedded] INFO Embedded R ended.
+2025-11-05 14:32:41 [rpy2.rinterface_lib.embedded] INFO Embedded R ended.
+2025-11-05 14:32:41 [rpy2.rinterface_lib.embedded] INFO Embedded R ended.
+2025-11-05 14:32:41 [rpy2.rinterface_lib.embedded] INFO Embedded R ended.
+2025-11-05 14:32:41 [rpy2.rinterface_lib.embedded] INFO Embedded R ended.
+2025-11-05 14:32:41 [rpy2.rinterface_lib.embedded] INFO Embedded R ended.
