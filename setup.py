@@ -4,7 +4,7 @@ import glob
 
 setup(
     ext_modules = cythonize(
-        glob.glob("src/python_src/*.py"), 
+        glob.glob("src/*.py"), 
         compiler_directives={'language_level': "3"}
     ),
 )
