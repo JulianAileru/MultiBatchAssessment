@@ -1,4 +1,4 @@
-# ADAP-MultiBatchAssessment (Copy)
+# MultiBatchAssessment
 A python dashboard to assess the contribution and removal of batch effects in large-scale untargeted metabolomics data 
 
 ## Input: 
