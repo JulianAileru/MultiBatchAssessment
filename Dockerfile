@@ -21,6 +21,7 @@ WORKDIR /usr
 
 # Copy application source
 COPY src/ src/
+COPY setup.py . 
 COPY dashboard.py .
 COPY utils/ utils/
 
@@ -30,8 +31,9 @@ RUN mv src/scripts/*.py /usr/src
 RUN rm src/*.so
 RUN rm -r src/scripts
 
-# # # Build Cython files
-# RUN python src/scripts/setup.py build_ext --inplace
+# # Build Cython files
+RUN python setup.py build_ext --inplace
+RUN rm src/*.c src/*.py
 
 # Expose Streamlit port
 EXPOSE 8501
