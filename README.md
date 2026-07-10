@@ -12,21 +12,20 @@ A python dashboard to assess the contribution and removal of batch effects in la
     substrings that appear in the sample index/name so samples can be tagged (e.g. `SP` for QCs, `B` for blanks)
 
 ## Requirements:
-  - Conda/Mamba
-  - A working R installation with `lme4` (installed automatically as a dependency of `pymer4` via conda; required for the PVCA diagnostic)
+  - Docker
 
 ## Steps:
   1. Clone Repository
      `git clone https://github.com/JulianAileru/MultiBatchAssessment.git`
-  2. Install Dependencies
-     `conda env create -f environment.yml`
-  3. Run Application
-     `conda activate dashboard`
-     `streamlit run dashboard.py`
-
-  Alternatively, build and run the provided Docker image:
+  2. Build the image
      `docker build -t multibatch-assessment .`
+  3. Run the container
      `docker run -p 8501:8501 multibatch-assessment`
+  4. Open the app at `http://localhost:8501`
+
+  Docker is the supported way to run this application — it bundles the exact conda environment
+  (including R/`lme4`, required for the PVCA diagnostic) and the compiled application code, so there's
+  no local conda setup to manage.
 ## Methods:
 QC-Dependent methods (requires QC samples):
 - Feature Based Signal Correction (Corrects intra-batch drift per feature, followed by QC mean shifting to correct for inter-batch effect)
