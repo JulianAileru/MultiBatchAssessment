@@ -11,14 +11,17 @@ dependencies:
   - cython
   - scikit-learn
   - pymer4=0.9.2
+  - rpy2
   - plotly
   - patsy
   - tqdm
   - polars
   - joblib
+  - seaborn
+  - matplotlib
   - c-compiler
   - cxx-compiler
   - pip
   - pip:
     - uuid
-    - inmoose 
+    - inmoose

@@ -147,11 +147,6 @@ class Assessment(AssessmentInfo):
                    return(output)
                    }
                    """)
-        params = {'explained_variance':explained_variance,
-                  'imputation_method': imputation_method,
-                  'normalization_method': normalization_method,
-                  "Number of PCs": len([x for x in pca_df.columns if x.startswith("PC")])}
-        self.logger.info(f"PVCA Parameters: {params}")
         D = self.data.copy()
         self.Preprocessor = Preprocessor(transformation_method=transformation_method,
                                         imputation_method=imputation_method,

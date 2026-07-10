@@ -21,19 +21,14 @@ WORKDIR /usr
 
 # Copy application source
 COPY src/ src/
-COPY setup.py . 
+COPY setup.py .
 COPY dashboard.py .
 COPY utils/ utils/
 
-
-# # Clean up old compiled files
-RUN mv src/scripts/*.py /usr/src
-RUN rm src/*.so
-RUN rm -r src/scripts
-
-# # Build Cython files
+# Build Cython extensions from src/*.py, then drop the original
+# .py/.c sources so only the compiled .so modules ship in the image
 RUN python setup.py build_ext --inplace
-RUN rm src/*.c src/*.py
+RUN rm -f src/*.c src/*.py
 
 # Expose Streamlit port
 EXPOSE 8501

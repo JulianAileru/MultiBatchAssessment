@@ -41,8 +41,8 @@ class Preprocessor:
         means = data.mean(axis=0, skipna=True).values[None,:]
         stds = data.std(axis=0, skipna=True, ddof=1).values[None,:]
         samples = np.random.normal(loc=means, scale=stds, size=data.shape)
-        data[nan_mask] = samples[nan_mask]
-        return data 
+        data[nan_mask] = samples
+        return data
     @staticmethod
     def impute_global_minimum(data,logger):
         min_val = data.where(data > 0).min().min()
@@ -52,10 +52,12 @@ class Preprocessor:
     def impute_median_value(data,logger):
         logger.info(f'Imputing Minimum Value: {data.median(axis=0)}')
         data = data.fillna(data.median(axis=0))
+        return data
     @staticmethod
     def impute_mean_value(data,logger):
         logger.info(f'Imputing Mean Value: {data.mean(axis=0)}')
         data = data.fillna(data.mean(axis=0))
+        return data
     # Normalization Methods
     @staticmethod
     def TIC(data,logger):
@@ -67,13 +69,13 @@ class Preprocessor:
     @staticmethod
     def MedianNorm(data,logger):
         logger.info("Applying Median Normalization")
-        data = (data / data.median(axis=1))
+        data = data.div(data.median(axis=1), axis=0)
         return data
-    
+
     @staticmethod
     def MeanNorm(data,logger):
         logger.info("Applying Mean Normalziation")
-        data = (data / data.mean(axis=1))
+        data = data.div(data.mean(axis=1), axis=0)
         return data
     @staticmethod
     def PQN(data,logger):
@@ -100,16 +102,16 @@ class Preprocessor:
         
         imputation_methods = {
             "Global Minimum Value": Preprocessor.impute_global_minimum,
-            "Median Value": Preprocessor.impute_median_value,
-            "Mean Value": Preprocessor.impute_mean_value,
+            "Median": Preprocessor.impute_median_value,
+            "Mean": Preprocessor.impute_mean_value,
             "Gaussian Sampling": Preprocessor.impute_gaussian_sampling,
         }
         normalization_methods = {
             "TIC": Preprocessor.TIC,
             "Internal Standards": Preprocessor.InternalStandards,
             "PQN": Preprocessor.PQN,
-            'MedianNorm': Preprocessor.MedianNorm,
-            'MeanNorm': Preprocessor.MeanNorm
+            'Median': Preprocessor.MedianNorm,
+            'Mean': Preprocessor.MeanNorm
         }
         transformation_methods = {'Log2 Transformation':Preprocessor.log2transform,
                                   'Natural Log Transformation':Preprocessor.lntransform}

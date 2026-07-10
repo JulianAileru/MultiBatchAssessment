@@ -131,7 +131,6 @@ class SERRF(BatchCorrector):
         self.qc_str = qc_str
         self.blank_str = blank_str
         self.n_jobs = n_jobs
-        self.serrf_impute = False #Do not use this 
         self.num_features=num_features
     def adjust_data_labels(self,data,metadata,rowvar=False):
         mask_qc_data = data.index.str.contains(self.qc_str)
@@ -155,38 +154,6 @@ class SERRF(BatchCorrector):
 
         return data,metadata
 
-    def impute(current_batch):
-        signals = current_batch.index.to_list()
-        zero_mask = current_batch == 0
-        na_mask = current_batch.isna()
-
-        for signal in signals:
-            row = current_batch.loc[signal]
-            row_zero_mask = zero_mask.loc[signal]
-            row_na_mask = na_mask.loc[signal]
-            valid_values = row[~row_zero_mask & ~row_na_mask]
-            
-            if valid_values.empty:
-                continue
-                
-            min_val = valid_values.min()
-            
-            if row_zero_mask.any():
-                zero_impute = np.random.normal(
-                    size=row_zero_mask.sum(),
-                    loc=(min_val+1),
-                    scale=((0.1*min_val)+0.1)
-                )
-                current_batch.loc[signal, row_zero_mask] = zero_impute
-                
-            if row_na_mask.any():
-                na_impute = np.random.normal(
-                    size=row_na_mask.sum(),
-                    loc=0.5*(min_val+1),
-                    scale=((0.1*min_val)+0.1)
-                )
-                current_batch.loc[signal, row_na_mask] = na_impute    
-        return current_batch
     def compute_correlation(self):
         """
         Current Batch is of shape (n_signals,n_samples)
@@ -417,14 +384,6 @@ class SERRF(BatchCorrector):
     def correct(self,data,metadata):
         root_logger = logging.getLogger()
         logfile = root_logger.handlers[0].stream
-        # if self.serrf_impute:
-        #     self.logger.info("Filling Missing Values using Gaussian Sampling")
-        #     print('Filling missing values')
-        #     imputed_all = []
-        #     for batch in self.batches:
-        #         filled_na = self.impute(batch)
-        #         imputed_all.append(filled_na)
-        #     self.all_data = pd.concat(imputed_all,axis=1)
         self.logger.info("Adjusting Data Labels")
         self.all_data,self.metadata = self.adjust_data_labels(data=data,metadata=metadata)
         self.all_data = self.all_data.T
