@@ -1,170 +1,0 @@
-2025-10-14 12:26:44 [Preprocessor] INFO Starting Preprocessing
-2025-10-14 12:26:44 [Preprocessor] INFO Filling Missing Values with: None Method
-2025-10-14 12:26:44 [Preprocessor] INFO No Imputation Method Selected
-2025-10-14 12:26:44 [Preprocessor] INFO Applying Log2(x+1) Transformation
-2025-10-14 12:26:44 [QC_SVRC] INFO Applying Injection-Based QC-SVRC Correction
-2025-10-14 12:26:44 [QC_SVRC] INFO Batch: 1
-Number of QC Samples: 9
-Number of Biological Samples: 92
-2025-10-14 12:27:30 [Preprocessor] INFO Starting Preprocessing
-2025-10-14 12:27:30 [Preprocessor] INFO Filling Missing Values with: None Method
-2025-10-14 12:27:30 [Preprocessor] INFO No Imputation Method Selected
-2025-10-14 12:27:30 [Preprocessor] INFO Applying Log2(x+1) Transformation
-2025-10-14 12:27:30 [QC_SVRC] INFO Applying Injection-Based QC-SVRC Correction
-2025-10-14 12:27:30 [QC_SVRC] INFO Batch: 1
-Number of QC Samples: 9
-Number of Biological Samples: 92
-2025-10-14 12:28:00 [Preprocessor] INFO Starting Preprocessing
-2025-10-14 12:28:00 [Preprocessor] INFO Filling Missing Values with: None Method
-2025-10-14 12:28:00 [Preprocessor] INFO No Imputation Method Selected
-2025-10-14 12:28:00 [Preprocessor] INFO Applying Log2(x+1) Transformation
-2025-10-14 12:28:00 [QC_SVRC] INFO Applying Injection-Based QC-SVRC Correction
-2025-10-14 12:28:00 [QC_SVRC] INFO Batch: 1
-Number of QC Samples: 9
-Number of Biological Samples: 92
-2025-10-14 12:29:46 [py.warnings] WARNING /Users/jaileru/miniconda3/envs/home/lib/python3.13/site-packages/sklearn/utils/extmath.py:1144: RuntimeWarning: invalid value encountered in divide
-  updated_mean = (last_sum + new_sum) / updated_sample_count
-
-2025-10-14 12:29:46 [py.warnings] WARNING /Users/jaileru/miniconda3/envs/home/lib/python3.13/site-packages/sklearn/utils/extmath.py:1149: RuntimeWarning: invalid value encountered in divide
-  T = new_sum / new_sample_count
-
-2025-10-14 12:29:46 [py.warnings] WARNING /Users/jaileru/miniconda3/envs/home/lib/python3.13/site-packages/sklearn/utils/extmath.py:1169: RuntimeWarning: invalid value encountered in divide
-  new_unnormalized_variance -= correction**2 / new_sample_count
-
-2025-10-14 12:32:42 [Preprocessor] INFO Starting Preprocessing
-2025-10-14 12:32:42 [Preprocessor] INFO Filling Missing Values with: None Method
-2025-10-14 12:32:42 [Preprocessor] INFO No Imputation Method Selected
-2025-10-14 12:33:55 [Preprocessor] INFO Starting Preprocessing
-2025-10-14 12:33:55 [Preprocessor] INFO Filling Missing Values with: None Method
-2025-10-14 12:33:55 [Preprocessor] INFO No Imputation Method Selected
-2025-10-14 12:34:56 [Preprocessor] INFO Starting Preprocessing
-2025-10-14 12:34:56 [Preprocessor] INFO Filling Missing Values with: None Method
-2025-10-14 12:34:56 [Preprocessor] INFO No Imputation Method Selected
-2025-10-14 12:34:56 [MetNormalizer] INFO Applying MetNormalizer Correction
-2025-10-14 12:34:56 [MetNormalizer] INFO Found 27 QC samples and 276 biological samples across 3 Batches
-2025-10-14 12:34:56 [MetNormalizer] INFO Computing Correlated Features
-2025-10-14 12:36:09 [MetNormalizer] INFO Normalizing Signals
-  0%|          | 0/10781 [00:00<?, ?it/s]2025-10-14 12:36:44 [Preprocessor] INFO Starting Preprocessing
-2025-10-14 12:36:44 [Preprocessor] INFO Filling Missing Values with: Global Minimum Value Method
-2025-10-14 12:36:44 [MetNormalizer] INFO Applying MetNormalizer Correction
-2025-10-14 12:36:44 [MetNormalizer] INFO Found 27 QC samples and 276 biological samples across 3 Batches
-2025-10-14 12:36:44 [MetNormalizer] INFO Computing Correlated Features
-2025-10-14 12:38:05 [MetNormalizer] INFO Normalizing Signals
-
-  0%|          | 0/10781 [00:00<?, ?it/s][A
-  0%|          | 16/10781 [00:11<2:08:44,  1.39it/s][A
-  0%|          | 24/10781 [00:11<1:17:48,  2.30it/s][A
-  0%|          | 40/10781 [00:11<36:11,  4.95it/s]  [A
-  1%|          | 72/10781 [00:12<14:30, 12.30it/s][A
-  1%|▏         | 152/10781 [00:12<04:42, 37.63it/s][A
-  3%|▎         | 280/10781 [00:12<01:55, 90.90it/s][A
-  5%|▍         | 536/10781 [00:12<00:46, 219.56it/s][A
-  7%|▋         | 792/10781 [00:12<00:26, 379.72it/s][A
- 10%|▉         | 1048/10781 [00:12<00:17, 543.78it/s][A
- 12%|█▏        | 1304/10781 [00:13<00:14, 644.39it/s][A
- 14%|█▍        | 1560/10781 [00:13<00:12, 712.32it/s][A
- 17%|█▋        | 1816/10781 [00:13<00:10, 869.03it/s][A
- 19%|█▉        | 2072/10781 [00:13<00:08, 995.78it/s][A
- 22%|██▏       | 2328/10781 [00:13<00:07, 1084.12it/s][A
- 24%|██▍       | 2584/10781 [00:14<00:07, 1140.99it/s][A
- 26%|██▋       | 2840/10781 [00:14<00:06, 1170.49it/s][A
- 29%|██▊       | 3096/10781 [00:14<00:06, 1223.84it/s][A
- 31%|███       | 3352/10781 [00:14<00:05, 1298.39it/s][A
- 33%|███▎      | 3608/10781 [00:14<00:05, 1336.88it/s][A
- 36%|███▌      | 3864/10781 [00:14<00:04, 1384.67it/s][A
- 38%|███▊      | 4120/10781 [00:15<00:04, 1544.37it/s][A
- 41%|████      | 4376/10781 [00:15<00:04, 1563.43it/s][A
- 43%|████▎     | 4632/10781 [00:15<00:04, 1351.77it/s][A
- 45%|████▌     | 4888/10781 [00:15<00:04, 1460.67it/s][A
- 48%|████▊     | 5144/10781 [00:15<00:03, 1519.89it/s][A
- 50%|█████     | 5400/10781 [00:15<00:03, 1567.26it/s][A
- 52%|█████▏    | 5656/10781 [00:16<00:03, 1596.22it/s][A
- 55%|█████▍    | 5912/10781 [00:16<00:03, 1598.70it/s][A
- 57%|█████▋    | 6168/10781 [00:16<00:02, 1544.10it/s][A
- 60%|█████▉    | 6424/10781 [00:16<00:02, 1593.62it/s][A
- 62%|██████▏   | 6680/10781 [00:16<00:02, 1670.50it/s][A
- 64%|██████▍   | 6936/10781 [00:16<00:02, 1650.81it/s][A
- 67%|██████▋   | 7192/10781 [00:17<00:02, 1667.17it/s][A
- 69%|██████▉   | 7448/10781 [00:17<00:01, 1695.82it/s][A
- 71%|███████▏  | 7704/10781 [00:17<00:01, 1632.66it/s][A
- 74%|███████▍  | 7960/10781 [00:17<00:01, 1675.74it/s][A
- 76%|███████▌  | 8216/10781 [00:17<00:01, 1703.19it/s][A
- 79%|███████▊  | 8472/10781 [00:17<00:01, 1752.81it/s][A
- 81%|████████  | 8728/10781 [00:18<00:01, 1306.87it/s][A
- 83%|████████▎ | 8984/10781 [00:18<00:01, 1476.99it/s][A
- 86%|████████▌ | 9240/10781 [00:18<00:00, 1606.60it/s][A
- 88%|████████▊ | 9496/10781 [00:18<00:00, 1572.84it/s][A
- 90%|█████████ | 9752/10781 [00:18<00:00, 1621.66it/s][A
- 93%|█████████▎| 10008/10781 [00:18<00:00, 1685.20it/s][A
- 95%|█████████▌| 10264/10781 [00:18<00:00, 1705.36it/s][A
- 98%|█████████▊| 10520/10781 [00:19<00:00, 1671.30it/s][A
-100%|█████████▉| 10776/10781 [00:19<00:00, 1675.97it/s][A100%|██████████| 10781/10781 [00:19<00:00, 560.16it/s] 
-2025-10-14 12:38:25 [MetNormalizer] INFO Scaling Data by Median
-2025-10-14 12:38:25 [MetNormalizer] INFO Correction Complete
-2025-10-14 12:39:45 [Preprocessor] INFO Starting Preprocessing
-2025-10-14 12:39:45 [Preprocessor] INFO Filling Missing Values with: Global Minimum Value Method
-2025-10-14 12:39:45 [Preprocessor] INFO Applying Log2(x+1) Transformation
-2025-10-14 12:39:45 [MetNormalizer] INFO Applying MetNormalizer Correction
-2025-10-14 12:39:45 [MetNormalizer] INFO Found 27 QC samples and 276 biological samples across 3 Batches
-2025-10-14 12:39:45 [MetNormalizer] INFO Computing Correlated Features
-2025-10-14 12:41:05 [MetNormalizer] INFO Normalizing Signals
-
-  0%|          | 0/10781 [00:00<?, ?it/s][A
-  1%|          | 80/10781 [00:00<00:17, 626.66it/s][A
-  3%|▎         | 368/10781 [00:00<00:06, 1550.12it/s][A
-  7%|▋         | 752/10781 [00:00<00:07, 1337.24it/s][A
-  9%|▉         | 1008/10781 [00:00<00:06, 1451.00it/s][A
- 12%|█▏        | 1264/10781 [00:00<00:06, 1542.56it/s][A
- 14%|█▍        | 1520/10781 [00:01<00:05, 1635.22it/s][A
- 16%|█▋        | 1776/10781 [00:01<00:05, 1642.36it/s][A
- 19%|█▉        | 2032/10781 [00:01<00:05, 1665.98it/s][A
- 21%|██        | 2288/10781 [00:01<00:05, 1636.29it/s][A
- 24%|██▎       | 2544/10781 [00:01<00:05, 1641.57it/s][A
- 26%|██▌       | 2800/10781 [00:01<00:04, 1636.65it/s][A
- 28%|██▊       | 3056/10781 [00:01<00:04, 1669.27it/s][A
- 31%|███       | 3312/10781 [00:02<00:04, 1676.83it/s][A
- 33%|███▎      | 3568/10781 [00:02<00:04, 1679.85it/s][A
- 35%|███▌      | 3824/10781 [00:02<00:04, 1651.72it/s][A
- 38%|███▊      | 4080/10781 [00:02<00:03, 1773.92it/s][A
- 40%|████      | 4336/10781 [00:02<00:03, 1790.62it/s][A
- 43%|████▎     | 4592/10781 [00:02<00:03, 1768.51it/s][A
- 45%|████▍     | 4848/10781 [00:02<00:03, 1768.46it/s][A
- 47%|████▋     | 5104/10781 [00:03<00:03, 1773.34it/s][A
- 50%|████▉     | 5360/10781 [00:03<00:03, 1383.78it/s][A
- 52%|█████▏    | 5616/10781 [00:03<00:03, 1443.98it/s][A
- 54%|█████▍    | 5872/10781 [00:03<00:03, 1486.95it/s][A
- 57%|█████▋    | 6128/10781 [00:03<00:02, 1556.11it/s][A
- 59%|█████▉    | 6384/10781 [00:03<00:02, 1656.41it/s][A
- 62%|██████▏   | 6640/10781 [00:04<00:02, 1708.05it/s][A
- 64%|██████▍   | 6896/10781 [00:04<00:02, 1740.28it/s][A
- 66%|██████▋   | 7152/10781 [00:04<00:02, 1749.45it/s][A
- 69%|██████▊   | 7408/10781 [00:04<00:01, 1705.84it/s][A
- 71%|███████   | 7664/10781 [00:04<00:01, 1696.07it/s][A
- 73%|███████▎  | 7920/10781 [00:04<00:01, 1749.44it/s][A
- 76%|███████▌  | 8176/10781 [00:04<00:01, 1752.93it/s][A
- 78%|███████▊  | 8432/10781 [00:05<00:01, 1818.32it/s][A
- 81%|████████  | 8688/10781 [00:05<00:01, 1764.91it/s][A
- 83%|████████▎ | 8944/10781 [00:05<00:01, 1738.36it/s][A
- 85%|████████▌ | 9200/10781 [00:05<00:00, 1755.28it/s][A
- 88%|████████▊ | 9456/10781 [00:05<00:01, 1257.89it/s][A
- 90%|█████████ | 9712/10781 [00:06<00:00, 1363.92it/s][A
- 92%|█████████▏| 9968/10781 [00:06<00:00, 1447.19it/s][A
- 95%|█████████▍| 10224/10781 [00:06<00:00, 1473.80it/s][A
- 97%|█████████▋| 10480/10781 [00:06<00:00, 1485.40it/s][A
-100%|█████████▉| 10736/10781 [00:06<00:00, 1530.78it/s][A100%|██████████| 10781/10781 [00:06<00:00, 1610.11it/s]
-2025-10-14 12:41:12 [MetNormalizer] INFO Scaling Data by Median
-2025-10-14 12:41:12 [MetNormalizer] INFO Correction Complete
-2025-10-14 12:43:44 [Preprocessor] INFO Starting Preprocessing
-2025-10-14 12:43:44 [Preprocessor] INFO Filling Missing Values with: None Method
-2025-10-14 12:43:44 [Preprocessor] INFO No Imputation Method Selected
-2025-10-14 12:43:44 [Preprocessor] INFO Applying Log2(x+1) Transformation
-2025-10-14 12:43:44 [QC_SVRC] INFO Applying Injection-Based QC-SVRC Correction
-2025-10-14 12:43:44 [QC_SVRC] INFO Batch: 1
-Number of QC Samples: 9
-Number of Biological Samples: 92
-2025-10-14 12:55:16 [QC_SVRC] INFO Batch: 5
-Number of QC Samples: 9
-Number of Biological Samples: 92
-2025-10-14 13:07:13 [QC_SVRC] INFO Batch: 9
-Number of QC Samples: 9
-Number of Biological Samples: 92
